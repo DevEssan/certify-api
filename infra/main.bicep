@@ -11,6 +11,12 @@ param containerImage string = 'mcr.microsoft.com/dotnet/samples:aspnetapp'
 @secure()
 param apiKey string
 
+@description('Minsta antal repliker. 2 i prod enligt kravet, 0 i dev for att spara budget under utveckling.')
+param minReplicas int = 2
+
+@description('Koppla ACR med systemidentitet. Satt false vid allra forsta deployen pa en tom miljo - AcrPull-rollen finns inte forran appen skapats.')
+param attachRegistry bool = true
+
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var acrName = 'acrcertify${uniqueSuffix}'
 var storageAccountName = 'stcertify${uniqueSuffix}'
@@ -95,6 +101,12 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
         targetPort: 8080
         transport: 'auto'
       }
+      registries: attachRegistry ? [
+        {
+          server: acr.properties.loginServer
+          identity: 'system'
+        }
+      ] : []
       secrets: [
         {
           name: 'api-key'
@@ -132,7 +144,7 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
         }
       ]
       scale: {
-        minReplicas: 0
+        minReplicas: minReplicas
         maxReplicas: 3
         rules: [
           {
