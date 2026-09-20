@@ -1,0 +1,52 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  acrName: acrcertifyvlkt5iwe37gq6
+  containerAppName: ca-certify-dev
+  resourceGroup: RG-Essan-Alshakerchi-10d10a-DotNetCloudDeveloper-VT-Mars-Goteborg
+  imageTag: $(Build.SourceVersion)
+
+steps:
+  - task: UseDotNet@2
+    displayName: Install .NET 10
+    inputs:
+      version: '10.0.x'
+
+  - script: dotnet restore
+    displayName: Restore
+
+  - script: dotnet build --no-restore -c Release
+    displayName: Build
+
+  - script: dotnet test --no-build -c Release
+    displayName: Test
+
+  - task: AzureCLI@2
+    displayName: Build and push image
+    inputs:
+      azureSubscription: azure-certify
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        az acr login --name $(acrName)
+        docker build -t $(acrName).azurecr.io/certify-api:$(imageTag) .
+        docker push $(acrName).azurecr.io/certify-api:$(imageTag)
+
+  - task: AzureCLI@2
+    displayName: Deploy to Container Apps
+    inputs:
+      azureSubscription: azure-certify
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        az extension add --name containerapp --upgrade
+        az containerapp update \
+          --name $(containerAppName) \
+          --resource-group $(resourceGroup) \
+          --image $(acrName).azurecr.io/certify-api:$(imageTag)
