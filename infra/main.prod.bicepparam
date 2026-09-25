@@ -1,6 +1,6 @@
 using 'main.bicep'
 
-param environmentName = 'dev'
+param environmentName = 'prod'
 param location = 'swedencentral'
 param minReplicas = 2
 param attachRegistry = true
